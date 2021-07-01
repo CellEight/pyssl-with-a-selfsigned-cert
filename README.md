@@ -59,6 +59,7 @@ We will cover each in turn.
 ## Configuring the Client
 
 To configure the client we first import the ssl library and create our `SSLContext` instance, pointing it towards the certificate we generated earlier.
+
 ```python
 import ssl
 import socket
@@ -77,3 +78,35 @@ This ssl socket instance can then be used just like any other socket to connect 
 
 ## Configuring the Server
 
+To configure the server, much like the client, we begin by creating the context but this time we must use our private key + certificate file and set a few additional options.
+
+```python
+import ssl
+import socket
+
+context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+context.load_cert_chain(certfile=cert) 
+context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_3
+context.set_ciphers('EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH')
+```
+
+On the server side we don't wish to wrap the socket that listens for new connects, rather we wish to convert the sockets generated when a new client connects to the server into ssl sockets..
+As a result the process looks somewhat different than on the client side:
+
+```python
+socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+socket.bind((<YOUR SEVER IP>, <PORT TO LISTEN ON>))
+socket.listen()
+connection, client_ip = socket.accept()
+ssl_connection = self.ssl_context.wrap_socket(connection, server_side=True)
+```
+
+`ssl_connection` is then a ssl socket which can be used exaclty like an ordinary socket to communicate with the connected client
+
+## Conclusion
+
+And there you have it if all goes well you your application should now use SSL to securely communicate across whatever network it finds itself on, and you didn't have to pay a certificate authority a dime!
+It is probably a wise idea to use wireshark or a similar packet sniffing application to make sure that all the traffic your application is sending is encrypted but if everything is running exception free it's probably working just fine.
+Don't try using this for a application that you plan to put into production as it will simply not work, just go give a certificate authority some of your hard earned cash and get yourself a real cert.
+If you notice any errors or can suggest any improvements please feel free to make a pull request, I'm no expert and this is doubtless not the optimal way of doing. 
+Feel free to roast me if this is the case!
